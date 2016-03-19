@@ -77,10 +77,10 @@ ifeq ("$(FLASH_SIZE)","512KB")
 ESP_SPI_SIZE        ?= 0       # 0->512KB (256KB+256KB)
 ESP_FLASH_MODE      ?= 0       # 0->QIO
 ESP_FLASH_FREQ_DIV  ?= 0       # 0->40Mhz
-ESP_FLASH_MAX       ?= 245760  # max bin file for 512KB flash: 240KB with moved user2 ROM
+ESP_FLASH_MAX       ?= 229376  # max bin file for 512KB flash: 224KB
 ET_FS               ?= 4m      # 4Mbit flash size in esptool flash command
 ET_FF               ?= 40m     # 40Mhz flash speed in esptool flash command
-ET_PART2            ?= 0x40000
+ET_PART2            ?= 0x42000
 ET_BLANK            ?= 0x7E000 # where to flash blank.bin to erase wireless settings
 
 else ifeq ("$(FLASH_SIZE)","1MB")
@@ -147,7 +147,7 @@ BUILD_BASE	= build
 FW_BASE		= firmware
 
 # name for the target project
-TARGET		= httpd
+TARGET		= wifiboot
 
 # espressif tool to concatenate sections for OTA upload using bootloader v1.2+
 APPGEN_TOOL	?= gen_appbin.py
@@ -387,11 +387,6 @@ clean:
 	$(Q) rm -f $(APP_AR)
 	$(Q) rm -f $(TARGET_OUT)
 	$(Q) find $(BUILD_BASE) -type f | xargs rm -f
-	$(Q) make -C espfs/mkespfsimage/ clean
 	$(Q) rm -rf $(FW_BASE)
-	$(Q) rm -f webpages.espfs
-ifeq ("$(COMPRESS_W_HTMLCOMPRESSOR)","yes")
-	$(Q) rm -rf html_compressed
-endif
 
 $(foreach bdir,$(BUILD_DIR),$(eval $(call compile-objects,$(bdir))))
