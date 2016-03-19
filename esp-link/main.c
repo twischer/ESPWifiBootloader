@@ -11,43 +11,14 @@
 
 #include <esp8266.h>
 #include "httpd.h"
-#include "httpdespfs.h"
 #include "cgi.h"
 #include "cgiwifi.h"
-#include "cgimqtt.h"
 #include "cgiflash.h"
 #include "safeupgrade.h"
 #include "auth.h"
-#include "espfs.h"
 #include "uart.h"
-#include "status.h"
-#include "serled.h"
-#include "config.h"
 #include "gpio.h"
 #include "stringdefs.h"
-
-#ifdef LOG
-#include "log.h"
-#endif
-
-#ifdef SYSLOG
-#include "syslog.h"
-#endif
-
-#ifdef CONSOLE
-#include "console.h"
-#endif
-
-#ifdef SERIAL_BRIDGE
-#include "serbridge.h"
-#endif
-
-#ifdef CGI_ADVANCED
-#include "cgiservices.h"
-#include "cgipins.h"
-#include "cgitcp.h"
-#include "cgioptiboot.h"
-#endif
 
 #define NOTICE(format, ...) do {	                                          \
 	LOG_NOTICE(format, ## __VA_ARGS__ );                                      \
@@ -65,66 +36,17 @@ general ones. Authorization things (like authBasic) act as a 'barrier' and
 should be placed above the URLs they protect.
 */
 HttpdBuiltInUrl builtInUrls[] = {
-  { "/", cgiRedirect, "/home.html" },
-  { "/menu", cgiMenu, NULL },
   { "/flash/next", cgiGetFirmwareNext, NULL },
   { "/flash/upload", cgiUploadFirmware, NULL },
   { "/flash/reboot", cgiRebootFirmware, NULL },
   { "/log/reset", cgiReset, NULL },
-#ifdef CGI_ADVANCED
-  { "/pgm/sync", cgiOptibootSync, NULL },
-  { "/pgm/upload", cgiOptibootData, NULL },
-  { "/pins", cgiPins, NULL },
-  { "/system/info", cgiSystemInfo, NULL },
-  { "/system/update", cgiSystemSet, NULL },
-  { "/services/info", cgiServicesInfo, NULL },
-  { "/services/update", cgiServicesSet, NULL },
-#endif
-#ifdef LOG
-  { "/log/text", ajaxLog, NULL },
-  { "/log/dbg", ajaxLogDbg, NULL },
-#endif
-#ifdef CONSOLE
-  { "/console/reset", ajaxConsoleReset, NULL },
-  { "/console/baud", ajaxConsoleBaud, NULL },
-  { "/console/text", ajaxConsole, NULL },
-  { "/console/send", ajaxConsoleSend, NULL },
-#endif
-  //Enable the line below to protect the WiFi configuration with an username/password combo.
-  //    {"/wifi/*", authBasic, myPassFn},
-  { "/wifi", cgiRedirect, "/wifi/wifi.html" },
-  { "/wifi/", cgiRedirect, "/wifi/wifi.html" },
-  { "/wifi/info", cgiWifiInfo, NULL },
-  { "/wifi/scan", cgiWiFiScan, NULL },
-  { "/wifi/connect", cgiWiFiConnect, NULL },
-  { "/wifi/connstatus", cgiWiFiConnStatus, NULL },
-  { "/wifi/setmode", cgiWiFiSetMode, NULL },
-  { "/wifi/special", cgiWiFiSpecial, NULL },
-  { "/wifi/apinfo", cgiApSettingsInfo, NULL },
-  { "/wifi/apchange", cgiApSettingsChange, NULL },  
-#ifdef MQTT
-  { "/mqtt", cgiMqtt, NULL },
-#endif  
-  { "*", cgiEspFsHook, NULL }, //Catch-all cgi function for the filesystem
   { NULL, NULL, NULL }
 };
-
-#ifdef SHOW_HEAP_USE
-static ETSTimer prHeapTimer;
-static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg) {
-  os_printf("Heap: %ld\n", (unsigned long)system_get_free_heap_size());
-}
-#endif
 
 # define VERS_STR_STR(V) #V
 # define VERS_STR(V) VERS_STR_STR(V)
 char* esp_link_version = VERS_STR(VERSION);
 
-// address of espfs binary blob
-extern uint32_t _binary_espfs_img_start;
-
-extern void app_init(void);
-extern void mqtt_client_init(void);
 
 void user_rf_pre_init(void) {
   /* undo upgrade, if the first boot failes
@@ -138,48 +60,19 @@ void user_rf_pre_init(void) {
 
 // Main routine to initialize esp-link.
 void user_init(void) {
-  // get the flash config so we know how to init things
-  //configWipe(); // uncomment to reset the config for testing purposes
-  bool restoreOk = configRestore();
   // Init gpio pin registers
   gpio_init();
   gpio_output_set(0, 0, 0, (1<<15)); // some people tie it to GND, gotta ensure it's disabled
   // init UART
-  uart_init(flashConfig.baud_rate, 115200);
-#ifdef LOG
-  logInit(); // must come after init of uart
-#endif
+  uart_init(115200, 115200);
   // Say hello (leave some time to cause break in TX after boot loader's msg
   os_delay_us(10000L);
   os_printf("\n\n** %s\n", esp_link_version);
-  os_printf("Flash config restore %s\n", restoreOk ? "ok" : "*FAILED*");
-  // Status LEDs
-  statusInit();
-  serledInit();
   // Wifi
   wifiInit();
 
-  // init the flash filesystem with the html stuff
-#ifdef USE_OTHER_PARTITION_FOR_ESPFS
-  uint32* addr = getNextFlashAddr();
-  const EspFsInitResult res = espFsInit(addr);
-#else
-  const EspFsInitResult res = espFsInit(&_binary_espfs_img_start);
-#endif
-  os_printf("espFsInit %s (%u)\n", res?"ERR":"ok", res);
-
   // mount the http handlers
   httpdInit(builtInUrls, 80);
-#ifdef SERIAL_BRIDGE
-  // init the wifi-serial transparent bridge (port 23)
-  serbridgeInit(23, 2323);
-  uart_add_recv_cb(&serbridgeUartCb);
-#endif
-#ifdef SHOW_HEAP_USE
-  os_timer_disarm(&prHeapTimer);
-  os_timer_setfn(&prHeapTimer, prHeapTimerCb, NULL);
-  os_timer_arm(&prHeapTimer, 10000, 1);
-#endif
 
   struct rst_info *rst_info = system_get_rst_info();
   NOTICE("Reset cause: %d=%s", rst_info->reason, rst_codes[rst_info->reason]);
@@ -189,17 +82,4 @@ void user_init(void) {
   uint32_t fid = spi_flash_get_id();
   NOTICE("Flash map %s, manuf 0x%02lX chip 0x%04lX", flash_maps[system_get_flash_size_map()],
       fid & 0xff, (fid&0xff00)|((fid>>16)&0xff));
-  NOTICE("** esp-link ready");
-    
-#ifdef CGI_ADVANCED
-  // Init SNTP service
-  cgiServicesSNTPInit();
-#endif
-#ifdef MQTT
-  NOTICE("initializing MQTT");
-  mqtt_client_init();
-#endif
-  NOTICE("initializing user application");
-  app_init();
-  NOTICE("Waiting for work to do...");
 }

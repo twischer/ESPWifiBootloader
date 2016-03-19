@@ -43,7 +43,7 @@
 
 # If CHANGE_TO_STA is set to "yes" the esp-link module will switch to station mode
 # once successfully connected to an access point. Else it will stay in STA+AP mode.
-CHANGE_TO_STA ?= yes
+CHANGE_TO_STA ?= no
 
 # hostname or IP address for wifi flashing
 ESP_HOSTNAME        ?= esp-link
@@ -69,59 +69,6 @@ ESPBAUD		?= 460800
 
 # Pick your flash size: "512KB", "1MB", or "4MB"
 FLASH_SIZE ?= 512KB
-
-# The pin assignments below are used when the settings in flash are invalid, they
-# can be changed via the web interface
-# GPIO pin used to reset attached microcontroller, acative low
-MCU_RESET_PIN       ?= 12
-# GPIO pin used with reset to reprogram MCU (ISP=in-system-programming, unused with AVRs), active low
-MCU_ISP_PIN         ?= 13
-# GPIO pin used for "connectivity" LED, active low
-LED_CONN_PIN        ?= 0
-# GPIO pin used for "serial activity" LED, active low
-LED_SERIAL_PIN      ?= 14
-
-# --------------- esp-link modules config options ---------------
-
-# Optional Modules mqtt
-#MODULES ?= mqtt rest syslog cmd esp-link/cgiadv esp-link/log serial/console serial/serbridge
-
-# --------------- esphttpd config options ---------------
-
-# If GZIP_COMPRESSION is set to "yes" then the static css, js, and html files will be compressed
-# with gzip before added to the espfs image and will be served with gzip Content-Encoding header.
-# This could speed up the downloading of these files, but might break compatibility with older
-# web browsers not supporting gzip encoding because Accept-Encoding is simply ignored.
-# Enable this option if you have large static files to serve (for e.g. JQuery, Twitter bootstrap)
-# If you have text based static files with different extensions what you want to serve compressed
-# then you will need to add the extension to the following places:
-# - Add the extension to this Makefile at the webpages.espfs target to the find command
-# - Add the extension to the gzippedFileTypes array in the user/httpd.c file
-#
-# Adding JPG or PNG files (and any other compressed formats) is not recommended, because GZIP
-# compression does not work effectively on compressed files.
-
-#Static gzipping is disabled by default.
-GZIP_COMPRESSION ?= yes
-
-# If COMPRESS_W_HTMLCOMPRESSOR is set to "yes" then the static css and js files will be compressed with
-# htmlcompressor and yui-compressor. This option works only when GZIP_COMPRESSION is set to "yes".
-# https://code.google.com/p/htmlcompressor/#For_Non-Java_Projects
-# http://yui.github.io/yuicompressor/
-# enabled by default.
-COMPRESS_W_HTMLCOMPRESSOR ?= yes
-HTML_COMPRESSOR ?= htmlcompressor-1.5.3.jar
-YUI_COMPRESSOR ?= yuicompressor-2.4.8.jar
-
-
-# use this option to place the ESP FS image in the other partition of the flash
-# which is currently not booted.
-USE_OTHER_PARTITION_FOR_ESPFS ?= yes
-
-# -------------- End of config options -------------
-
-HTML_PATH = $(abspath ./html)/
-WIFI_PATH = $(HTML_PATH)wifi/
 
 ET_PART1            ?= 0x01000
 
@@ -207,39 +154,6 @@ APPGEN_TOOL	?= gen_appbin.py
 
 CFLAGS=
 
-# set defines for optional modules
-ifneq (,$(findstring mqtt,$(MODULES)))
-	CFLAGS		+= -DMQTT
-endif
-
-ifneq (,$(findstring rest,$(MODULES)))
-	CFLAGS		+= -DREST
-endif
-
-ifneq (,$(findstring syslog,$(MODULES)))
-	CFLAGS		+= -DSYSLOG
-endif
-
-ifneq (,$(findstring cmd,$(MODULES)))
-	CFLAGS		+= -DCMD
-endif
-
-ifneq (,$(findstring esp-link/cgiadv,$(MODULES)))
-	CFLAGS		+= -DCGI_ADVANCED
-endif
-
-ifneq (,$(findstring esp-link/log,$(MODULES)))
-	CFLAGS		+= -DLOG
-endif
-
-ifneq (,$(findstring serial/console,$(MODULES)))
-	CFLAGS		+= -DCONSOLE
-endif
-
-ifneq (,$(findstring serial/serbridge,$(MODULES)))
-	CFLAGS		+= -DSERIAL_BRIDGE
-endif
-
 # which modules (subdirectories) of the project to include in compiling
 LIBRARIES_DIR 	= libraries
 MODULES		  	+= espfs httpd user serial esp-link
@@ -253,8 +167,6 @@ LIBS = c gcc hal phy pp net80211 wpa main lwip crypto
 CFLAGS	+= -Os -ggdb -std=c99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-inline-functions \
 		-nostdlib -mlongcalls -mtext-section-literals -ffunction-sections -fdata-sections \
 		-D__ets__ -DICACHE_FLASH -D_STDINT_H -Wno-address -DFIRMWARE_SIZE=$(ESP_FLASH_MAX) \
-		-DMCU_RESET_PIN=$(MCU_RESET_PIN) -DMCU_ISP_PIN=$(MCU_ISP_PIN) \
-		-DLED_CONN_PIN=$(LED_CONN_PIN) -DLED_SERIAL_PIN=$(LED_SERIAL_PIN) \
 		-DVERSION="$(VERSION)" -DBOOTLOADER_CONFIG_ADDR="($(BOOTLOADER_CONFIG_ADDR))" \
 		-DUSER2_BIN_SPI_FLASH_ADDR="$(ET_PART2)"
 
@@ -291,9 +203,6 @@ APPGEN_TOOL	:= $(addprefix $(SDK_TOOLS)/,$(APPGEN_TOOL))
 
 SRC			:= $(foreach sdir,$(SRC_DIR),$(wildcard $(sdir)/*.c))
 OBJ			:= $(patsubst %.c,$(BUILD_BASE)/%.o,$(SRC))
-ifneq ("$(USE_OTHER_PARTITION_FOR_ESPFS)","yes")
-OBJ			+= $(BUILD_BASE)/espfs_img.o
-endif
 
 LIBS		:= $(addprefix -l,$(LIBS))
 APP_AR		:= $(addprefix $(BUILD_BASE)/,$(TARGET)_app.a)
@@ -311,6 +220,10 @@ vecho := @true
 else
 Q := @
 vecho := @echo
+endif
+
+ifneq ($(strip $(ESP_HOSTNAME)),)
+CFLAGS		+= -DESP_HOSTNAME="\"$(ESP_HOSTNAME)\""
 endif
 
 ifneq ($(strip $(STA_SSID)),)
@@ -345,17 +258,10 @@ ifneq ($(strip $(AP_BEACON_INTERVAL)),)
 CFLAGS		+= -DAP_BEACON_INTERVAL="$(AP_BEACON_INTERVAL)"
 endif
 
-ifeq ("$(GZIP_COMPRESSION)","yes")
-CFLAGS		+= -DGZIP_COMPRESSION
-endif
-
 ifeq ("$(CHANGE_TO_STA)","yes")
 CFLAGS		+= -DCHANGE_TO_STA
 endif
 
-ifeq ("$(USE_OTHER_PARTITION_FOR_ESPFS)","yes")
-CFLAGS		+= -DUSE_OTHER_PARTITION_FOR_ESPFS
-endif
 
 vpath %.c $(SRC_DIR)
 
@@ -367,7 +273,7 @@ endef
 
 .PHONY: all checkdirs clean webpages.espfs wiflash
 
-all: echo_version checkdirs $(FW_BASE)/user1.bin $(FW_BASE)/user2.bin $(BUILD_BASE)/espfs_img.o
+all: echo_version checkdirs $(FW_BASE)/user1.bin $(FW_BASE)/user2.bin
 
 echo_version:
 	@echo VERSION: $(VERSION)
@@ -377,12 +283,10 @@ $(USER1_OUT): $(APP_AR) $(LD_SCRIPT1)
 	$(Q) $(LD) -L$(SDK_LIBDIR) -T$(LD_SCRIPT1) $(LDFLAGS) -Wl,--start-group $(LIBS) $(APP_AR) -Wl,--end-group -o $@
 	@echo Dump  : $(OBJDP) -x $(USER1_OUT)
 	@echo Disass: $(OBJDP) -d -l -x $(USER1_OUT)
-#	$(Q) $(OBJDP) -x $(TARGET_OUT) | egrep espfs_img
 
 $(USER2_OUT): $(APP_AR) $(LD_SCRIPT2)
 	$(vecho) "LD $@"
 	$(Q) $(LD) -L$(SDK_LIBDIR) -T$(LD_SCRIPT2) $(LDFLAGS) -Wl,--start-group $(LIBS) $(APP_AR) -Wl,--end-group -o $@
-#	$(Q) $(OBJDP) -x $(TARGET_OUT) | egrep espfs_img
 
 $(FW_BASE):
 	$(vecho) "FW $@"
@@ -419,93 +323,20 @@ checkdirs: $(BUILD_DIR)
 $(BUILD_DIR):
 	$(Q) mkdir -p $@
 
-ifeq ("$(USE_OTHER_PARTITION_FOR_ESPFS)","yes")
-wiflash: all
-	./wiflash $(ESP_HOSTNAME) $(FW_BASE)/user1.bin $(FW_BASE)/user2.bin build/espfs.img
-else
+
 wiflash: all
 	./wiflash $(ESP_HOSTNAME) $(FW_BASE)/user1.bin $(FW_BASE)/user2.bin
-endif
 
 baseflash: all
 	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash $(ET_PART1) $(FW_BASE)/user1.bin
 
 
-ifeq ("$(USE_OTHER_PARTITION_FOR_ESPFS)","yes")
-flash: all
-	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash -fs $(ET_FS) -ff $(ET_FF) \
-	  0x00000 "$(SDK_BASE)/bin/boot_v1.5.bin" \
-	  $(ET_PART1) $(FW_BASE)/user1.bin \
-	  $(ET_PART2) build/espfs.img \
-	  $(ET_BLANK) $(SDK_BASE)/bin/blank.bin
-else
 flash: all
 	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash -fs $(ET_FS) -ff $(ET_FF) \
 	  0x00000 "$(SDK_BASE)/bin/boot_v1.5.bin" \
 	  $(ET_PART1) $(FW_BASE)/user1.bin \
 	  $(ET_BLANK) $(SDK_BASE)/bin/blank.bin
-endif
 
-
-ifeq ($(OS),Windows_NT)
-tools/$(HTML_COMPRESSOR):
-	$(Q) mkdir -p tools
-	cd tools; wget --no-check-certificate https://github.com/yui/yuicompressor/releases/download/v2.4.8/$(YUI_COMPRESSOR) -O $(YUI_COMPRESSOR)
-	cd tools; wget --no-check-certificate https://htmlcompressor.googlecode.com/files/$(HTML_COMPRESSOR) -O $(HTML_COMPRESSOR)
-else
-tools/$(HTML_COMPRESSOR):
-	$(Q) mkdir -p tools
-	cd tools; wget https://github.com/yui/yuicompressor/releases/download/v2.4.8/$(YUI_COMPRESSOR)
-	cd tools; wget https://htmlcompressor.googlecode.com/files/$(HTML_COMPRESSOR)
-endif
-
-ifeq ("$(COMPRESS_W_HTMLCOMPRESSOR)","yes")
-$(BUILD_BASE)/espfs_img.o: tools/$(HTML_COMPRESSOR)
-endif
-
-$(BUILD_BASE)/espfs_img.o: html/ html/wifi/ espfs/mkespfsimage/mkespfsimage
-	$(Q) rm -rf html_compressed; mkdir html_compressed; mkdir html_compressed/wifi;
-	$(Q) cp -r html/*.ico html_compressed;
-	$(Q) cp -r html/*.css html_compressed;
-	$(Q) cp -r html/*.js html_compressed;
-	$(Q) cp -r html/wifi/*.png html_compressed/wifi;
-	$(Q) cp -r html/wifi/*.js html_compressed/wifi;
-ifeq ("$(COMPRESS_W_HTMLCOMPRESSOR)","yes")
-	$(Q) echo "Compression assets with htmlcompressor. This may take a while..."
-		$(Q) java -jar tools/$(HTML_COMPRESSOR) \
-		-t html --remove-surrounding-spaces max --remove-quotes --remove-intertag-spaces \
-		-o $(abspath ./html_compressed)/ \
-		$(HTML_PATH)head- \
-		$(HTML_PATH)*.html
-	$(Q) java -jar tools/$(HTML_COMPRESSOR) \
-		-t html --remove-surrounding-spaces max --remove-quotes --remove-intertag-spaces \
-		-o $(abspath ./html_compressed)/wifi/ \
-		$(WIFI_PATH)*.html
-	$(Q) echo "Compression assets with yui-compressor. This may take a while..."
-	$(Q) for file in `find html_compressed -type f -name "*.js"`; do \
-			java -jar tools/$(YUI_COMPRESSOR) $$file --line-break 0 -o $$file; \
-		done
-	$(Q) for file in `find html_compressed -type f -name "*.css"`; do \
-			java -jar tools/$(YUI_COMPRESSOR) $$file -o $$file; \
-		done
-else
-	$(Q) cp -r html/head- html_compressed;
-	$(Q) cp -r html/*.html html_compressed;
-	$(Q) cp -r html/wifi/*.html html_compressed/wifi;	
-endif
-ifeq (,$(findstring mqtt,$(MODULES)))
-	$(Q) rm -rf html_compressed/mqtt.html
-	$(Q) rm -rf html_compressed/mqtt.js
-endif
-	$(Q) for file in `find html_compressed -type f -name "*.htm*"`; do \
-		cat html_compressed/head- $$file >$${file}-; \
-		mv $$file- $$file; \
-	done
-	$(Q) rm html_compressed/head-
-	$(Q) cd html_compressed; find . \! -name \*- | ../espfs/mkespfsimage/mkespfsimage > ../build/espfs.img; cd ..;
-	$(Q) ls -sl build/espfs.img
-	$(Q) cd build; $(OBJCP) -I binary -O elf32-xtensa-le -B xtensa --rename-section .data=.espfs \
-			espfs.img espfs_img.o; cd ..
 
 # edit the loader script to add the espfs section to the end of irom with a 4 byte alignment.
 # we also adjust the sizes of the segments 'cause we need more irom0

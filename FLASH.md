@@ -19,9 +19,25 @@ What this means is that we can flash just about anything into partition1 or part
 as it doesn't take more than 236KB and has the right format that the boot loader understands.
 We can't mess with the first 4KB nor the last 16KB of the flash.
 
+
+Flash Layout with seperate Wifi bootloader
+==========================================
+
 SDK v1.5.2 needs 213732 Bytes (0x35000) of the SPI flash without any user code implemantations.
+Wifi bootloader with SDK v1.5.2 needs 227268 Bytes (0x38000)
 For system and bootloader parameters 16kB (0x4000) are needed.
-So there leave 0x42000 Bytes (= 0x80000 - 0x01000 - 0x35000 - 0x04000) for user code implemantations and user parameters.
+So there leave 0x43000 Bytes (= 0x80000 - 0x01000 - 0x38000 - 0x04000) for user code implemantations and user parameters.
+
+ - @0x00000 4KB 2nd stage bootloader
+ - @0x01000 260KB (0x41000) esp-link
+ - @0x42000 224KB (0x38000) wifi bootloader
+ - @0x7A000 4KB esp-link parameters
+ - @0x7B000 4KB esp-link parameters backup
+ - @0x7C000 4KB used (possibly bootloader?)
+ - @0x7D000 4KB system wifi parameters (ROM1?)
+ - @0x7E000 4KB system wifi parameters (ROM2?)
+ - @0x7F000 4KB 2nd stage bootloader parameters
+
 
 
 Now how does a code partition break down? that is reflected in the following definition found in

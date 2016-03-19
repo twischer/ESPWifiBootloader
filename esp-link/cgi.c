@@ -15,7 +15,6 @@ Some random cgi routines.
 
 #include <esp8266.h>
 #include "cgi.h"
-#include "config.h"
 
 #ifdef CGI_DBG
 #define DBG(format, ...) do { os_printf(format, ## __VA_ARGS__); } while(0)
@@ -161,65 +160,4 @@ uint8_t ICACHE_FLASH_ATTR UTILS_StrToIP(const char* str, void *ip){
     ((uint8_t*)ip)[i] = n;
   }
   return 1;
-}
-
-#if 0
-#define TOKEN(x) (os_strcmp(token, x) == 0)
-// Handle system information variables and print their value, returns the number of
-// characters appended to buff
-int ICACHE_FLASH_ATTR printGlobalInfo(char *buff, int buflen, char *token) {
-  if (TOKEN("si_chip_id")) {
-    return os_sprintf(buff, "0x%x", system_get_chip_id());
-  } else if (TOKEN("si_freeheap")) {
-    return os_sprintf(buff, "%dKB", system_get_free_heap_size()/1024);
-  } else if (TOKEN("si_uptime")) {
-    uint32 t = system_get_time() / 1000000; // in seconds
-    return os_sprintf(buff, "%dd%dh%dm%ds", t/(24*3600), (t/(3600))%24, (t/60)%60, t%60);
-  } else if (TOKEN("si_boot_version")) {
-    return os_sprintf(buff, "%d", system_get_boot_version());
-  } else if (TOKEN("si_boot_address")) {
-    return os_sprintf(buff, "0x%x", system_get_userbin_addr());
-  } else if (TOKEN("si_cpu_freq")) {
-    return os_sprintf(buff, "%dMhz", system_get_cpu_freq());
-  } else {
-    return 0;
-  }
-}
-#endif
-
-extern char *esp_link_version; // in user_main.c
-
-int ICACHE_FLASH_ATTR cgiMenu(HttpdConnData *connData) {
-  if (connData->conn==NULL) return HTTPD_CGI_DONE; // Connection aborted. Clean up.
-  char buff[1024];
-  // don't use jsonHeader so the response does get cached
-  httpdStartResponse(connData, 200);
-  httpdHeader(connData, "Cache-Control", "max-age=3600, must-revalidate");
-  httpdHeader(connData, "Content-Type", "application/json");
-  httpdEndHeaders(connData);
-  // limit hostname to 12 chars
-  char name[13];
-  os_strncpy(name, flashConfig.hostname, 12);
-  name[12] = 0;
-  // construct json response
-  os_sprintf(buff,
-    "{ "
-      "\"menu\": [ "
-        "\"Home\", \"/home.html\", "
-        "\"WiFi Station\", \"/wifi/wifiSta.html\", "
-        "\"WiFi Soft-AP\", \"/wifi/wifiAp.html\", "
-        "\"&#xb5;C Console\", \"/console.html\", "
-        "\"Services\", \"/services.html\", "
-#ifdef MQTT
-        "\"REST/MQTT\", \"/mqtt.html\", "
-#endif
-        "\"Debug log\", \"/log.html\""
-      " ], "
-      "\"version\": \"%s\", "
-      "\"name\": \"%s\""
-    " }",
-  esp_link_version, name);
-
-  httpdSend(connData, buff, -1);
-  return HTTPD_CGI_DONE;
 }

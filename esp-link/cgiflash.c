@@ -18,7 +18,6 @@ Some flash handling cgi routines. Used for reading the existing flash and updati
 #include <osapi.h>
 #include "cgi.h"
 #include "cgiflash.h"
-#include "espfs.h"
 #include "safeupgrade.h"
 
 #define SPI_FLASH_MEM_EMU_START_ADDR    0x40200000
@@ -156,11 +155,6 @@ int ICACHE_FLASH_ATTR cgiUploadFirmware(HttpdConnData *connData) {
   // check that data starts with an appropriate header
   if (err == NULL && offset == 0) {
       err = check_header(connData->post->buff);
-
-      /* update anyway, if it is an ESP FS image */
-      if (err != NULL && espFsIsImage(connData->post->buff)) {
-          err = NULL;
-      }
   }
 
   // make sure we're buffering in 1024 byte chunks
