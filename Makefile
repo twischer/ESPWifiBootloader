@@ -46,7 +46,7 @@
 CHANGE_TO_STA ?= no
 
 # hostname or IP address for wifi flashing
-ESP_HOSTNAME        ?= esp-link
+ESP_HOSTNAME        ?= 192.168.4.1
 
 # --------------- toolchain configuration ---------------
 
