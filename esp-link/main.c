@@ -15,7 +15,6 @@
 #include "cgiwifi.h"
 #include "cgiflash.h"
 #include "safeupgrade.h"
-#include "auth.h"
 #include "uart.h"
 #include "gpio.h"
 #include "stringdefs.h"
@@ -62,7 +61,7 @@ void ICACHE_FLASH_ATTR user_init(void) {
   gpio_init();
   gpio_output_set(0, 0, 0, (1<<15)); // some people tie it to GND, gotta ensure it's disabled
   // init UART
-  uart_init(115200, 115200);
+  uart_init(115200);
   // Say hello (leave some time to cause break in TX after boot loader's msg
   os_delay_us(10000L);
   NOTICE("\n\n** %s\n", esp_link_version);
