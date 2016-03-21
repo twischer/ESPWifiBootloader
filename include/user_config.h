@@ -5,48 +5,15 @@
 #include <_mingw.h>
 #endif
 
-#undef SHOW_HEAP_USE
-#define DEBUGIP
+
 #define SDK_DBG
 
-#define CMD_DBG
-#undef ESPFS_DBG
 #undef CGI_DBG
-#define CGIFLASH_DBG
-#define CGIMQTT_DBG
-#define CGIPINS_DBG
-#define CGIWIFI_DBG
-#define CONFIG_DBG
-#define LOG_DBG
-#define STATUS_DBG
+#undef CGIFLASH_DBG
+#undef CGIWIFI_DBG
 #undef HTTPD_DBG
-#define MQTT_DBG
-#define MQTTCMD_DBG
-#undef PKTBUF_DBG
-#define REST_DBG
-#define RESTCMD_DBG
-#define SERBR_DBG
-#define SERLED_DBG
-#define SLIP_DBG
-#define UART_DBG
-#define MDNS_DBG
-#define OPTIBOOT_DBG
-#undef SYSLOG_DBG
-#undef CGISERVICES_DBG
+#undef UART_DBG
+#undef SAFE_UPGRADE_DBG
 
-// If defined, the default hostname for DHCP will include the chip ID to make it unique
-#undef CHIP_IN_HOSTNAME
-
-#ifndef SYSLOG
-#define LOG_DEBUG(format, ...) do { } while(0)
-#define LOG_NOTICE(format, ...) do { } while(0)
-#define LOG_WARN(format, ...) do { } while(0)
-#define LOG_INFO(format, ...) do { } while(0)
-#define LOG_ERR(format, ...) do { } while(0)
-#endif
-
-
-extern char* esp_link_version;
-extern uint8_t UTILS_StrToIP(const char* str, void *ip);
 
 #endif

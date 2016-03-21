@@ -2,6 +2,12 @@
 #include "cgiflash.h"
 #include "safeupgrade.h"
 
+#ifdef SAFE_UPGRADE_DBG
+#define DBG(format, ...) do { os_printf(format, ## __VA_ARGS__); } while(0)
+#else
+#define DBG(format, ...) do { } while(0)
+#endif
+
 /* the timeout which will wait for the wifi flasher response
  * until the upgrade will be undone (in seconds)
  */
@@ -42,7 +48,7 @@ static bool ICACHE_FLASH_ATTR cgiFlashIsUpgradeSuccessful(void) {
     spi_flash_read(BOOTLOADER_CONFIG_ADDR, (uint32*)bootloaderConfig, sizeof(bootloaderConfig));
 
     const bool successfull = (bootloaderConfig[BOOTLOADER_CONFIG_SUCCESS_BYTE_POS] == BOOTLOADER_CONFIG_SUCCESS_MAGIC);
-    os_printf("Upgrade successful: %u\n", successfull);
+    DBG("Upgrade successful: %u\n", successfull);
     return successfull;
 }
 

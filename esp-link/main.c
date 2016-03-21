@@ -21,7 +21,6 @@
 #include "stringdefs.h"
 
 #define NOTICE(format, ...) do {	                                          \
-	LOG_NOTICE(format, ## __VA_ARGS__ );                                      \
 	os_printf(format "\n", ## __VA_ARGS__);                                   \
 } while ( 0 )
 
@@ -39,16 +38,15 @@ HttpdBuiltInUrl builtInUrls[] = {
   { "/flash/next", cgiGetFirmwareNext, NULL },
   { "/flash/upload", cgiUploadFirmware, NULL },
   { "/flash/reboot", cgiRebootFirmware, NULL },
-  { "/log/reset", cgiReset, NULL },
   { NULL, NULL, NULL }
 };
 
 # define VERS_STR_STR(V) #V
 # define VERS_STR(V) VERS_STR_STR(V)
-char* esp_link_version = VERS_STR(VERSION);
+static const char* const esp_link_version = VERS_STR(VERSION);
 
 
-void user_rf_pre_init(void) {
+void ICACHE_FLASH_ATTR user_rf_pre_init(void) {
   /* undo upgrade, if the first boot failes
    * with an watchdog reset, soft watchdog reset or an exception
    */
@@ -59,7 +57,7 @@ void user_rf_pre_init(void) {
 }
 
 // Main routine to initialize esp-link.
-void user_init(void) {
+void ICACHE_FLASH_ATTR user_init(void) {
   // Init gpio pin registers
   gpio_init();
   gpio_output_set(0, 0, 0, (1<<15)); // some people tie it to GND, gotta ensure it's disabled
@@ -67,7 +65,7 @@ void user_init(void) {
   uart_init(115200, 115200);
   // Say hello (leave some time to cause break in TX after boot loader's msg
   os_delay_us(10000L);
-  os_printf("\n\n** %s\n", esp_link_version);
+  NOTICE("\n\n** %s\n", esp_link_version);
   // Wifi
   wifiInit();
 

@@ -182,8 +182,10 @@ int ICACHE_FLASH_ATTR cgiUploadFirmware(HttpdConnData *connData) {
 
   // erase next flash block if necessary
   if (address % SPI_FLASH_SEC_SIZE == 0){
+#ifdef CGIFLASH_DBG
     const uint8 id = system_upgrade_enhance_userbin_check();
     DBG("Flashing 0x%05x (id=%d)\n", address, 2 - id);
+#endif
     spi_flash_erase_sector(address/SPI_FLASH_SEC_SIZE);
   }
 
@@ -242,20 +244,6 @@ int ICACHE_FLASH_ATTR cgiRebootFirmware(HttpdConnData *connData) {
   system_upgrade_flag_set(UPGRADE_FLAG_FINISH);
   os_timer_disarm(&flash_reboot_timer);
   os_timer_setfn(&flash_reboot_timer, cgiRebootFirmwareTimer, NULL);
-  os_timer_arm(&flash_reboot_timer, 2000, 1);
-  return HTTPD_CGI_DONE;
-}
-
-int ICACHE_FLASH_ATTR cgiReset(HttpdConnData *connData) {
-  if (connData->conn == NULL) return HTTPD_CGI_DONE; // Connection aborted. Clean up.
-
-  httpdStartResponse(connData, 200);
-  httpdHeader(connData, "Content-Length", "0");
-  httpdEndHeaders(connData);
-
-  // Schedule a reboot
-  os_timer_disarm(&flash_reboot_timer);
-  os_timer_setfn(&flash_reboot_timer, (os_timer_func_t *)system_restart, NULL);
   os_timer_arm(&flash_reboot_timer, 2000, 1);
   return HTTPD_CGI_DONE;
 }
