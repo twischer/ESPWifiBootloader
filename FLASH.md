@@ -24,13 +24,12 @@ Flash Layout with seperate Wifi bootloader
 ==========================================
 
 SDK v1.5.2 needs 213732 Bytes (0x35000) of the SPI flash without any user code implemantations.
-Wifi bootloader with SDK v1.5.2 needs 227268 Bytes (0x38000)
+Wifi bootloader with SDK v1.5.2 needs 0x36000 Bytes
 For system and bootloader parameters 16kB (0x4000) are needed.
-So there leave 0x43000 Bytes (= 0x80000 - 0x01000 - 0x38000 - 0x04000) for user code implemantations and user parameters.
 
  - @0x00000 4KB 2nd stage bootloader
- - @0x01000 260KB (0x41000) esp-link
- - @0x42000 224KB (0x38000) wifi bootloader
+ - @0x01000 268KB (0x43000) esp-link
+ - @0x44000 216KB (0x36000) wifi bootloader
  - @0x7A000 4KB esp-link parameters
  - @0x7B000 4KB esp-link parameters backup
  - @0x7C000 4KB used (possibly bootloader?)
