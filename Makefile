@@ -206,8 +206,8 @@ OBJ			:= $(patsubst %.c,$(BUILD_BASE)/%.o,$(SRC))
 
 LIBS		:= $(addprefix -l,$(LIBS))
 APP_AR		:= $(addprefix $(BUILD_BASE)/,$(TARGET)_app.a)
-USER1_OUT 	:= $(addprefix $(BUILD_BASE)/,$(TARGET).user1.out)
-USER2_OUT 	:= $(addprefix $(BUILD_BASE)/,$(TARGET).user2.out)
+USER1_OUT 	:= $(addprefix $(BUILD_BASE)/,$(TARGET).$(ET_PART1).out)
+USER2_OUT 	:= $(addprefix $(BUILD_BASE)/,$(TARGET).$(ET_PART2).out)
 
 INCDIR			:= $(addprefix -I,$(SRC_DIR))
 EXTRA_INCDIR	:= $(addprefix -I,$(EXTRA_INCDIR))
@@ -273,7 +273,7 @@ endef
 
 .PHONY: all checkdirs clean webpages.espfs wiflash
 
-all: echo_version checkdirs $(FW_BASE)/user1.bin $(FW_BASE)/user2.bin
+all: echo_version checkdirs $(FW_BASE)/$(ET_PART1).bin $(FW_BASE)/$(ET_PART2).bin
 
 echo_version:
 	@echo VERSION: $(VERSION)
@@ -292,7 +292,7 @@ $(FW_BASE):
 	$(vecho) "FW $@"
 	$(Q) mkdir -p $@
 
-$(FW_BASE)/user1.bin: $(USER1_OUT) $(FW_BASE)
+$(FW_BASE)/$(ET_PART1).bin: $(USER1_OUT) $(FW_BASE)
 	$(Q) $(OBJCP) --only-section .text -O binary $(USER1_OUT) eagle.app.v6.text.bin
 	$(Q) $(OBJCP) --only-section .data -O binary $(USER1_OUT) eagle.app.v6.data.bin
 	$(Q) $(OBJCP) --only-section .rodata -O binary $(USER1_OUT) eagle.app.v6.rodata.bin
@@ -304,7 +304,7 @@ $(FW_BASE)/user1.bin: $(USER1_OUT) $(FW_BASE)
 	@echo "** user1.bin uses $$(stat -c '%s' $@) bytes of" $(ESP_FLASH_MAX) "available"
 	$(Q) if [ $$(stat -c '%s' $@) -gt $$(( $(ESP_FLASH_MAX) )) ]; then echo "$@ too big!"; false; fi
 
-$(FW_BASE)/user2.bin: $(USER2_OUT) $(FW_BASE)
+$(FW_BASE)/$(ET_PART2).bin: $(USER2_OUT) $(FW_BASE)
 	$(Q) $(OBJCP) --only-section .text -O binary $(USER2_OUT) eagle.app.v6.text.bin
 	$(Q) $(OBJCP) --only-section .data -O binary $(USER2_OUT) eagle.app.v6.data.bin
 	$(Q) $(OBJCP) --only-section .rodata -O binary $(USER2_OUT) eagle.app.v6.rodata.bin
@@ -325,16 +325,16 @@ $(BUILD_DIR):
 
 
 wiflash: all
-	./wiflash $(ESP_HOSTNAME) $(FW_BASE)/user1.bin $(FW_BASE)/user2.bin
+	./wiflash $(ESP_HOSTNAME) $(FW_BASE)/$(ET_PART1).bin $(FW_BASE)/$(ET_PART2).bin
 
 baseflash: all
-	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash $(ET_PART1) $(FW_BASE)/user1.bin
+	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash $(ET_PART1) $(FW_BASE)/$(ET_PART1).bin
 
 
 flash: all
 	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash -fs $(ET_FS) -ff $(ET_FF) \
 	  0x00000 "$(SDK_BASE)/bin/boot_v1.5.bin" \
-	  $(ET_PART1) $(FW_BASE)/user1.bin \
+	  $(ET_PART1) $(FW_BASE)/$(ET_PART1).bin \
 	  $(ET_BLANK) $(SDK_BASE)/bin/blank.bin
 
 
@@ -375,9 +375,9 @@ espfs/mkespfsimage/mkespfsimage: espfs/mkespfsimage/
 
 release: all
 	$(Q) rm -rf release; mkdir -p release/esp-link-$(BRANCH)
-	$(Q) egrep -a 'esp-link [a-z0-9.]+ - 201' $(FW_BASE)/user1.bin | cut -b 1-80
-	$(Q) egrep -a 'esp-link [a-z0-9.]+ - 201' $(FW_BASE)/user2.bin | cut -b 1-80
-	$(Q) cp $(FW_BASE)/user1.bin $(FW_BASE)/user2.bin $(SDK_BASE)/bin/blank.bin \
+	$(Q) egrep -a 'esp-link [a-z0-9.]+ - 201' $(FW_BASE)/$(ET_PART1).bin | cut -b 1-80
+	$(Q) egrep -a 'esp-link [a-z0-9.]+ - 201' $(FW_BASE)/$(ET_PART2).bin | cut -b 1-80
+	$(Q) cp $(FW_BASE)/$(ET_PART1).bin $(FW_BASE)/$(ET_PART2).bin $(SDK_BASE)/bin/blank.bin \
 		   "$(SDK_BASE)/bin/boot_v1.5.bin" wiflash avrflash release/esp-link-$(BRANCH)
 	$(Q) tar zcf esp-link-$(BRANCH).tgz -C release esp-link-$(BRANCH)
 	$(Q) echo "Release file: esp-link-$(BRANCH).tgz"
