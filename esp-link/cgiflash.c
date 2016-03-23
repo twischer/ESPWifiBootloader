@@ -21,10 +21,14 @@ Some flash handling cgi routines. Used for reading the existing flash and updati
 #include "safeupgrade.h"
 
 #define SPI_FLASH_MEM_EMU_START_ADDR    0x40200000
-#define USER1_BIN_SPI_FLASH_ADDR        4*1024                                      // either start after 4KB boot partition
+#define USER1_BIN_SPI_FLASH_ADDR        (4*1024)                                      // either start after 4KB boot partition
 
-#ifndef USER2_BIN_SPI_FLASH_ADDR
-#define USER2_BIN_SPI_FLASH_ADDR        4*1024 + FIRMWARE_SIZE + 16*1024 + 4*1024   // 4KB boot, fw1, 16KB user param, 4KB reserved
+#ifdef USER2_BIN_SPI_FLASH_ADDR
+/* an unsymetric partition table is used */
+#define FIRMWARE_SIZE_PARTITION1        (USER2_BIN_SPI_FLASH_ADDR - USER1_BIN_SPI_FLASH_ADDR)
+#define FIRMWARE_SIZE_PARTITION2        FIRMWARE_SIZE
+#else
+#define USER2_BIN_SPI_FLASH_ADDR        (4*1024 + FIRMWARE_SIZE + 16*1024 + 4*1024)   // 4KB boot, fw1, 16KB user param, 4KB reserved
 #endif
 
 #ifdef CGIFLASH_DBG
@@ -147,8 +151,20 @@ int ICACHE_FLASH_ATTR cgiUploadFirmware(HttpdConnData *connData) {
   int code = 400;
 
   // check overall size
-  //os_printf("FW: %d (max %d)\n", connData->post->len, FIRMWARE_SIZE);
-  if (connData->post->len > FIRMWARE_SIZE) err = "Firmware image too large";
+#ifdef FIRMWARE_SIZE_PARTITION1
+  /* An unsymetric partition table is used.
+   * If partition 2 is active, check with first partition size.
+   */
+  if ( (system_upgrade_enhance_userbin_check() == UPGRADE_FW_BIN1 && connData->post->len > FIRMWARE_SIZE_PARTITION2) ||
+       (system_upgrade_enhance_userbin_check() == UPGRADE_FW_BIN2 && connData->post->len > FIRMWARE_SIZE_PARTITION1) ) {
+      DBG("FW: %d (max1 %d, max2 %d, id %u)\n", connData->post->len, FIRMWARE_SIZE_PARTITION1, FIRMWARE_SIZE_PARTITION2, system_upgrade_enhance_userbin_check());
+#else
+  if (connData->post->len > FIRMWARE_SIZE) {
+      DBG("FW: %d (max %d)\n", connData->post->len, FIRMWARE_SIZE);
+#endif
+      err = "Firmware image too large";
+  }
+
   if (connData->post->buff == NULL || connData->requestType != HTTPD_METHOD_POST ||
       connData->post->len < 1024) err = "Invalid request";
 

@@ -139,7 +139,7 @@ BRANCH  ?= $(shell if git diff --quiet HEAD; then git describe --tags; \
                    else git symbolic-ref --short HEAD; fi)
 SHA     := $(shell if git diff --quiet HEAD; then git rev-parse --short HEAD | cut -d"/" -f 3; \
                    else echo "development"; fi)
-VERSION ?=esp-link $(BRANCH) - $(DATE) - $(SHA)
+VERSION ?=wifi-boot $(BRANCH) - $(DATE) - $(SHA)
 
 # Output directors to store intermediate compiled files
 # relative to the project directory
